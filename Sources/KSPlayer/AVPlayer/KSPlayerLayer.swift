@@ -111,15 +111,9 @@ open class KSPlayerLayer: UIView {
                 firstPlayerType = KSOptions.firstPlayerType
             }
             if type(of: player) == firstPlayerType {
-                if url == oldValue {
-                    if options.isAutoPlay {
-                        play()
-                    }
-                } else {
-                    resetPlayer()
-                    player.replace(url: url, options: options)
-                    prepareToPlay()
-                }
+                resetPlayer()
+                player.replace(url: url, options: options)
+                prepareToPlay()
             } else {
                 resetPlayer()
                 player = firstPlayerType.init(url: url, options: options)
@@ -234,9 +228,6 @@ open class KSPlayerLayer: UIView {
     open func play() {
         UIApplication.shared.isIdleTimerDisabled = true
         isAutoPlay = true
-        if state == .error {
-            player.prepareToPlay()
-        }
         if player.isReadyToPlay {
             if state == .playedToTheEnd {
                 Task {
@@ -251,6 +242,10 @@ open class KSPlayerLayer: UIView {
                 player.play()
             }
             timer.fireDate = Date.distantPast
+        } else {
+            if state == .error {
+                player.prepareToPlay()
+            }
         }
         state = player.loadState == .playable ? .bufferFinished : .buffering
         MPNowPlayingInfoCenter.default().playbackState = .playing

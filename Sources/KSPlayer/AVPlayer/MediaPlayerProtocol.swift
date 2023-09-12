@@ -15,7 +15,6 @@ import AppKit
 
 public protocol MediaPlayback: AnyObject {
     var duration: TimeInterval { get }
-    var fileSize: Double { get }
     var naturalSize: CGSize { get }
     var currentPlaybackTime: TimeInterval { get }
     func prepareToPlay()
@@ -78,19 +77,20 @@ public protocol MediaPlayerTrack: AnyObject, CustomStringConvertible {
     var mediaType: AVFoundation.AVMediaType { get }
     var mediaSubType: CMFormatDescription.MediaSubType { get }
     var nominalFrameRate: Float { get }
-    var bitRate: Int64 { get }
-    var isEnabled: Bool { get set }
-    var audioStreamBasicDescription: AudioStreamBasicDescription? { get }
-    var isImageSubtitle: Bool { get }
     var rotation: Int16 { get }
+    var bitRate: Int64 { get }
     var naturalSize: CGSize { get }
+    var isEnabled: Bool { get set }
     var depth: Int32 { get }
     var fullRangeVideo: Bool { get }
     var colorPrimaries: String? { get }
     var transferFunction: String? { get }
     var yCbCrMatrix: String? { get }
+    var isImageSubtitle: Bool { get }
+    var audioStreamBasicDescription: AudioStreamBasicDescription? { get }
     var dovi: DOVIDecoderConfigurationRecord? { get }
     var fieldOrder: FFmpegFieldOrder { get }
+    func trackAudioChannelLayoutDescription() -> String?
 }
 
 // public extension MediaPlayerTrack: Identifiable {

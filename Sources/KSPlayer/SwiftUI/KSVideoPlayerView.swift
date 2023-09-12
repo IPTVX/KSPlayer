@@ -138,9 +138,7 @@ public struct KSVideoPlayerView: View {
             VideoSubtitleView(model: playerCoordinator.subtitleModel)
             VStack {
                 Spacer()
-                ProgressView()
-                    .background(.black.opacity(0.2))
-                    .opacity(playerCoordinator.state == .buffering ? 1 : 0)
+                ProgressView().opacity(playerCoordinator.state == .buffering ? 1 : 0)
                 VStack {
                     #if !os(tvOS)
                     VideoControllerView(config: playerCoordinator)
@@ -471,9 +469,6 @@ struct VideoSettingView: View {
                     Label("Sutitle", systemImage: "captions.bubble")
                 }
                 TextField("Sutitle delay", value: $subtitleModel.subtitleDelay, format: .number)
-            }
-            if let fileSize = config.playerLayer?.player.fileSize, fileSize > 0 {
-                Text("File Size \(String(format: "%.1f", fileSize / 1_000_000))MB")
             }
         }
         .padding()

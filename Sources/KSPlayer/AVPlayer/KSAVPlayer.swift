@@ -123,7 +123,6 @@ public class KSAVPlayer {
 
     public weak var delegate: MediaPlayerDelegate?
     public private(set) var duration: TimeInterval = 0
-    public private(set) var fileSize: Double = 0
     public private(set) var playableTime: TimeInterval = 0
 
     public var playbackRate: Float = 1 {
@@ -259,8 +258,6 @@ extension KSAVPlayer {
             // 默认选择第一个声道
             item.tracks.filter { $0.assetTrack?.mediaType.rawValue == AVMediaType.audio.rawValue }.dropFirst().forEach { $0.isEnabled = false }
             duration = item.duration.seconds
-            let estimatedDataRates = item.tracks.compactMap { $0.assetTrack?.estimatedDataRate }
-            fileSize = Double(estimatedDataRates.reduce(0, +)) * duration / 8
             isReadyToPlay = true
         } else if item.status == .failed {
             error = item.error
@@ -590,6 +587,11 @@ class AVMediaPlayerTrack: MediaPlayerTrack {
     }
 
     func load() {}
+    
+    func trackAudioChannelLayoutDescription() -> String? {
+        // TODO: implement
+        return nil
+    }
 }
 
 public extension AVAsset {

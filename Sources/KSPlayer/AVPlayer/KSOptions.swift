@@ -108,8 +108,8 @@ open class KSOptions {
         // 开启这个，纯ipv6地址会无法播放。
 //        formatContextOptions["reconnect_at_eof"] = 1
         formatContextOptions["reconnect_streamed"] = 1
-        // 开启这个，会导致tcp Failed to resolve hostname 还会一直重试
-//        formatContextOptions["reconnect_on_network_error"] = 1
+        formatContextOptions["reconnect_on_network_error"] = 1
+
         // There is total different meaning for 'listen_timeout' option in rtmp
         // set 'listen_timeout' = -1 for rtmp、rtsp
 //        formatContextOptions["listen_timeout"] = 3
@@ -435,16 +435,11 @@ public extension KSOptions {
             let minChannels = min(maximumOutputNumberOfChannels, channels)
             try? AVAudioSession.sharedInstance().setPreferredOutputNumberOfChannels(Int(minChannels))
             if !(isUseAudioRenderer && isSpatialAudioEnabled) {
-                let maxRouteChannelsCount = AVAudioSession.sharedInstance().currentRoute.outputs.compactMap {
-                    $0.channels?.count
-                }.max() ?? 2
-                KSLog("[audio] currentRoute max channels: \(maxRouteChannelsCount)")
-                channels = AVAudioChannelCount(min(AVAudioSession.sharedInstance().outputNumberOfChannels, maxRouteChannelsCount))
+                channels = AVAudioChannelCount(AVAudioSession.sharedInstance().preferredOutputNumberOfChannels)
             }
         } else {
             try? AVAudioSession.sharedInstance().setPreferredOutputNumberOfChannels(2)
         }
-        KSLog("[audio] outputNumberOfChannels: \(AVAudioSession.sharedInstance().outputNumberOfChannels)")
         KSLog("[audio] preferredOutputNumberOfChannels: \(AVAudioSession.sharedInstance().preferredOutputNumberOfChannels)")
         return channels
     }
@@ -529,10 +524,6 @@ public class FileLog: LogHandler {
             fileHandle.write(data)
         }
     }
-}
-
-@inlinable public func KSLog(_ error: @autoclosure () -> Error, file: String = #file, function: String = #function, line: UInt = #line) {
-    KSLog(level: .error, error().localizedDescription, file: file, function: function, line: line)
 }
 
 @inlinable public func KSLog(level: LogLevel = KSOptions.logLevel, _ message: @autoclosure () -> CustomStringConvertible, file: String = #file, function: String = #function, line: UInt = #line) {

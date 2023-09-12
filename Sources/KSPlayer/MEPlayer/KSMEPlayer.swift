@@ -19,15 +19,7 @@ public class KSMEPlayer: NSObject {
     private let audioOutput: AudioPlayer & FrameOutput
     private var options: KSOptions
     private var bufferingCountDownTimer: Timer?
-    public private(set) var videoOutput: MetalPlayView? {
-        didSet {
-            oldValue?.invalidate()
-            runInMainqueue {
-                oldValue?.removeFromSuperview()
-            }
-        }
-    }
-
+    public private(set) var videoOutput: MetalPlayView?
     public private(set) var bufferingProgress = 0 {
         didSet {
             delegate?.changeBuffering(player: self, progress: bufferingProgress)
@@ -110,7 +102,6 @@ public class KSMEPlayer: NSObject {
         playerItem.delegate = self
         audioOutput.renderSource = playerItem
         videoOutput?.renderSource = playerItem
-        videoOutput?.displayLayerDelegate = self
         #if !os(macOS)
         NotificationCenter.default.addObserver(self, selector: #selector(audioRouteChange), name: AVAudioSession.routeChangeNotification, object: AVAudioSession.sharedInstance())
         if #available(tvOS 15.0, iOS 15.0, *) {
@@ -145,15 +136,16 @@ private extension KSMEPlayer {
     }
 
     @objc private func spatialCapabilityChange(notification _: Notification) {
-        KSLog("[audio] spatialCapabilityChange")
-        tracks(mediaType: .audio).forEach { track in
-            (track as? FFmpegAssetTrack)?.audioDescriptor?.setAudioSession(isUseAudioRenderer: options.isUseAudioRenderer)
+        let audioDescriptor = tracks(mediaType: .audio).first { $0.isEnabled }.flatMap {
+            $0 as? FFmpegAssetTrack
+        }?.audioDescriptor
+        if let audioDescriptor {
+            audioDescriptor.setAudioSession(isUseAudioRenderer: options.isUseAudioRenderer)
         }
     }
 
     #if !os(macOS)
     @objc private func audioRouteChange(notification: Notification) {
-        KSLog("[audio] audioRouteChange")
         guard let reason = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt else {
             return
         }
@@ -161,8 +153,11 @@ private extension KSMEPlayer {
         guard routeChangeReason == .newDeviceAvailable || routeChangeReason == .oldDeviceUnavailable else {
             return
         }
-        tracks(mediaType: .audio).forEach { track in
-            (track as? FFmpegAssetTrack)?.audioDescriptor?.setAudioSession(isUseAudioRenderer: options.isUseAudioRenderer)
+        let audioDescriptor = tracks(mediaType: .audio).first { $0.isEnabled }.flatMap {
+            $0 as? FFmpegAssetTrack
+        }?.audioDescriptor
+        if let audioDescriptor {
+            audioDescriptor.setAudioSession(isUseAudioRenderer: options.isUseAudioRenderer)
         }
         audioOutput.flush()
     }
@@ -285,7 +280,6 @@ extension KSMEPlayer: MediaPlayerProtocol {
             videoOutput = nil
         } else if videoOutput == nil {
             videoOutput = MetalPlayView(options: options)
-            videoOutput?.displayLayerDelegate = self
         }
         self.options = options
         playerItem.delegate = self
@@ -307,8 +301,6 @@ extension KSMEPlayer: MediaPlayerProtocol {
     }
 
     public var duration: TimeInterval { playerItem.duration }
-
-    public var fileSize: Double { playerItem.fileSize }
 
     public var seekable: Bool { playerItem.seekable }
 
@@ -426,7 +418,7 @@ extension KSMEPlayer: AVPictureInPictureSampleBufferPlaybackDelegate {
     public func pictureInPictureController(_: AVPictureInPictureController, setPlaying playing: Bool) {
         playing ? play() : pause()
     }
-
+    
     public func pictureInPictureControllerTimeRangeForPlayback(_: AVPictureInPictureController) -> CMTimeRange {
         // Handle live streams.
         if duration == 0 {
@@ -519,10 +511,7 @@ extension KSMEPlayer: AVPlaybackCoordinatorPlaybackControlDelegate {
 extension KSMEPlayer: DisplayLayerDelegate {
     public func change(displayLayer: AVSampleBufferDisplayLayer) {
         if #available(iOS 15.0, tvOS 15.0, macOS 12.0, *) {
-            let contentSource = AVPictureInPictureController.ContentSource(sampleBufferDisplayLayer: displayLayer, playbackDelegate: self)
-            _pipController = KSPictureInPictureController(contentSource: contentSource)
-            // 更改contentSource会直接crash
-//            pipController?.contentSource = contentSource
+            pipController?.contentSource = AVPictureInPictureController.ContentSource(sampleBufferDisplayLayer: displayLayer, playbackDelegate: self)
         }
     }
 }
