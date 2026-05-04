@@ -10,6 +10,7 @@ import AVKit
 @available(tvOS 14.0, *)
 public class KSPictureInPictureController: AVPictureInPictureController {
     private static var pipController: KSPictureInPictureController?
+    private static let knownControllers = NSHashTable<KSPictureInPictureController>.weakObjects()
     private var originalViewController: UIViewController?
     private var view: KSPlayerLayer?
     private weak var viewController: UIViewController?
@@ -17,6 +18,70 @@ public class KSPictureInPictureController: AVPictureInPictureController {
     #if canImport(UIKit)
     private weak var navigationController: UINavigationController?
     #endif
+
+    #if os(iOS)
+    @available(iOS 14.2, *)
+    override public var canStartPictureInPictureAutomaticallyFromInline: Bool {
+        get {
+            super.canStartPictureInPictureAutomaticallyFromInline && KSOptions.isPictureInPictureAllowed()
+        }
+        set {
+            super.canStartPictureInPictureAutomaticallyFromInline = newValue && KSOptions.isPictureInPictureAllowed()
+        }
+    }
+    #endif
+
+    static func make(playerLayer: AVPlayerLayer) -> KSPictureInPictureController? {
+        guard KSOptions.isPictureInPictureAllowed() else {
+            return nil
+        }
+
+        guard let controller = KSPictureInPictureController(playerLayer: playerLayer) else {
+            return nil
+        }
+        controller.registerForAuthorizationTracking()
+        return controller
+    }
+
+    @available(iOS 15.0, tvOS 15.0, macOS 12.0, *)
+    static func make(contentSource: AVPictureInPictureController.ContentSource) -> KSPictureInPictureController? {
+        guard KSOptions.isPictureInPictureAllowed() else {
+            return nil
+        }
+
+        let controller = KSPictureInPictureController(contentSource: contentSource)
+        controller.registerForAuthorizationTracking()
+        return controller
+    }
+
+    public static func stopUnauthorizedPictureInPictureControllers() {
+        guard KSOptions.isPictureInPictureAllowed() == false else {
+            return
+        }
+
+        let stopControllers = {
+            for controller in knownControllers.allObjects {
+                controller.disableAutomaticStartIfNeeded()
+                if controller.isPictureInPictureActive {
+                    controller.stopPictureInPicture()
+                }
+            }
+        }
+
+        if Thread.isMainThread {
+            stopControllers()
+        } else {
+            DispatchQueue.main.async(execute: stopControllers)
+        }
+    }
+
+    override public func startPictureInPicture() {
+        guard KSOptions.isPictureInPictureAllowed() else {
+            return
+        }
+
+        super.startPictureInPicture()
+    }
 
     func stop(restoreUserInterface: Bool) {
         stopPictureInPicture()
@@ -58,6 +123,11 @@ public class KSPictureInPictureController: AVPictureInPictureController {
     }
 
     func start(view: KSPlayerLayer) {
+        guard KSOptions.isPictureInPictureAllowed() else {
+            view.isPipActive = false
+            return
+        }
+
         startPictureInPicture()
         delegate = view
         guard KSOptions.isPipPopViewController else {
@@ -106,5 +176,22 @@ public class KSPictureInPictureController: AVPictureInPictureController {
 
     static func mute() {
         pipController?.view?.player.isMuted = true
+    }
+
+    private func registerForAuthorizationTracking() {
+        Self.knownControllers.add(self)
+        disableAutomaticStartIfNeeded()
+    }
+
+    private func disableAutomaticStartIfNeeded() {
+        guard KSOptions.isPictureInPictureAllowed() == false else {
+            return
+        }
+
+        #if os(iOS)
+        if #available(iOS 14.2, *) {
+            super.canStartPictureInPictureAutomaticallyFromInline = false
+        }
+        #endif
     }
 }

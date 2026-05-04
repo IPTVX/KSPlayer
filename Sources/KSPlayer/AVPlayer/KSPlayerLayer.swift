@@ -74,6 +74,13 @@ open class KSPlayerLayer: NSObject {
     public var isPipActive = false {
         didSet {
             if #available(tvOS 14.0, *) {
+                guard KSOptions.isPictureInPictureAllowed() else {
+                    if isPipActive {
+                        isPipActive = false
+                    }
+                    return
+                }
+
                 guard let pipController = player.pipController else {
                     return
                 }
@@ -373,11 +380,12 @@ extension KSPlayerLayer: MediaPlayerDelegate {
         #endif
         #if !os(macOS) && !os(tvOS)
         if #available(iOS 14.2, *) {
-            if options.canStartPictureInPictureAutomaticallyFromInline {
-                player.pipController?.canStartPictureInPictureAutomaticallyFromInline = true
-            }
+            player.pipController?.canStartPictureInPictureAutomaticallyFromInline = options.canStartPictureInPictureAutomaticallyFromInline && KSOptions.isPictureInPictureAllowed()
         }
         #endif
+        if #available(tvOS 14.0, *) {
+            KSPictureInPictureController.stopUnauthorizedPictureInPictureControllers()
+        }
         updateNowPlayingInfo()
         if isAutoPlay {
             if shouldSeekTo > 0 {

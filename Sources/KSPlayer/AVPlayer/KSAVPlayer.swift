@@ -98,18 +98,21 @@ public class KSAVPlayer {
         }
     }
 
-    private lazy var _pipController: Any? = {
-        if #available(tvOS 14.0, *) {
-            let pip = KSPictureInPictureController(playerLayer: playerView.playerLayer)
-            return pip
-        } else {
-            return nil
-        }
-    }()
+    private var _pipController: Any?
 
     @available(tvOS 14.0, *)
     public var pipController: KSPictureInPictureController? {
-        _pipController as? KSPictureInPictureController
+        guard KSOptions.isPictureInPictureAllowed() else {
+            KSPictureInPictureController.stopUnauthorizedPictureInPictureControllers()
+            _pipController = nil
+            return nil
+        }
+
+        if _pipController == nil {
+            _pipController = KSPictureInPictureController.make(playerLayer: playerView.playerLayer)
+        }
+
+        return _pipController as? KSPictureInPictureController
     }
 
     public var naturalSize: CGSize = .zero

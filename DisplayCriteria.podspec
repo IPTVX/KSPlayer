@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
     s.name             = 'DisplayCriteria'
-    s.version          = '1.1.0'
+    s.version          = '2.3.4.1'
     s.summary          = 'Video Player Using Swift, based on AVPlayer,FFmpeg'
 
     s.description      = <<-DESC
@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
     s.homepage         = 'https://github.com/kingslay/KSPlayer'
     s.authors = { 'kintan' => 'kingslay@icloud.com' }
     s.license          = 'MIT'
-    s.source           = { :git => 'https://github.com/kingslay/KSPlayer.git', :tag => s.version.to_s }
+    s.source           = { :git => 'https://github.com/IPTVX/KSPlayer.git', :tag => '2.3.4-iptvx.1' }
 
     s.ios.deployment_target = '13.0'
     s.osx.deployment_target = '10.15'

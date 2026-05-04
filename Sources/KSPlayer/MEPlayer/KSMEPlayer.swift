@@ -37,19 +37,22 @@ public class KSMEPlayer: NSObject {
         }
     }
 
-    private lazy var _pipController: Any? = {
-        if #available(iOS 15.0, tvOS 15.0, macOS 12.0, *), let videoOutput {
-            let contentSource = AVPictureInPictureController.ContentSource(sampleBufferDisplayLayer: videoOutput.displayLayer, playbackDelegate: self)
-            let pip = KSPictureInPictureController(contentSource: contentSource)
-            return pip
-        } else {
-            return nil
-        }
-    }()
+    private var _pipController: Any?
 
     @available(tvOS 14.0, *)
     public var pipController: KSPictureInPictureController? {
-        _pipController as? KSPictureInPictureController
+        guard KSOptions.isPictureInPictureAllowed() else {
+            KSPictureInPictureController.stopUnauthorizedPictureInPictureControllers()
+            _pipController = nil
+            return nil
+        }
+
+        if _pipController == nil, #available(iOS 15.0, tvOS 15.0, macOS 12.0, *), let videoOutput {
+            let contentSource = AVPictureInPictureController.ContentSource(sampleBufferDisplayLayer: videoOutput.displayLayer, playbackDelegate: self)
+            _pipController = KSPictureInPictureController.make(contentSource: contentSource)
+        }
+
+        return _pipController as? KSPictureInPictureController
     }
 
     private lazy var _playbackCoordinator: Any? = {
@@ -570,7 +573,7 @@ extension KSMEPlayer: DisplayLayerDelegate {
     public func change(displayLayer: AVSampleBufferDisplayLayer) {
         if #available(iOS 15.0, tvOS 15.0, macOS 12.0, *) {
             let contentSource = AVPictureInPictureController.ContentSource(sampleBufferDisplayLayer: displayLayer, playbackDelegate: self)
-            _pipController = KSPictureInPictureController(contentSource: contentSource)
+            _pipController = KSPictureInPictureController.make(contentSource: contentSource)
             // 更改contentSource会直接crash
 //            pipController?.contentSource = contentSource
         }

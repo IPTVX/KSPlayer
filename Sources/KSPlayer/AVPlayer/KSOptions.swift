@@ -475,7 +475,8 @@ public extension KSOptions {
     // 默认不用自研的硬解，因为有些视频的AVPacket的pts顺序是不对的，只有解码后的AVFrame里面的pts是对的。
     static var asynchronousDecompression = false
     static var isPipPopViewController = false
-    static var canStartPictureInPictureAutomaticallyFromInline = true
+    public static var pictureInPictureAuthorizationHandler: (() -> Bool)?
+    static var canStartPictureInPictureAutomaticallyFromInline = false
     static var preferredFrame = true
     static var useSystemHTTPProxy = true
     /// 日志级别
@@ -486,6 +487,10 @@ public extension KSOptions {
         var len: size_t = MemoryLayout.size(ofValue: ncpu)
         sysctlbyname("hw.ncpu", &ncpu, &len, nil, 0)
         return Int(ncpu)
+    }
+
+    public static func isPictureInPictureAllowed() -> Bool {
+        pictureInPictureAuthorizationHandler?() ?? true
     }
 
     static func setAudioSession() {
