@@ -384,7 +384,24 @@ extension AVRational {
 
 extension AVBufferSrcParameters: Equatable {
     public static func == (lhs: AVBufferSrcParameters, rhs: AVBufferSrcParameters) -> Bool {
-        lhs.format == rhs.format && lhs.width == rhs.width && lhs.height == rhs.height && lhs.sample_aspect_ratio == rhs.sample_aspect_ratio && lhs.sample_rate == rhs.sample_rate && lhs.ch_layout == rhs.ch_layout
+        lhs.format == rhs.format
+            && lhs.time_base.num == rhs.time_base.num
+            && lhs.time_base.den == rhs.time_base.den
+            && lhs.width == rhs.width
+            && lhs.height == rhs.height
+            && lhs.sample_aspect_ratio == rhs.sample_aspect_ratio
+            && lhs.frame_rate.num == rhs.frame_rate.num
+            && lhs.frame_rate.den == rhs.frame_rate.den
+            && lhs.hwFramesContextData == rhs.hwFramesContextData
+            && lhs.sample_rate == rhs.sample_rate
+            && lhs.ch_layout == rhs.ch_layout
+    }
+
+    private var hwFramesContextData: UnsafeMutableRawPointer? {
+        guard let data = hw_frames_ctx?.pointee.data else {
+            return nil
+        }
+        return UnsafeMutableRawPointer(data)
     }
 
     var arg: String {

@@ -14,6 +14,7 @@ class MEFilter {
     private var bufferSrcContext: UnsafeMutablePointer<AVFilterContext>?
     private var bufferSinkContext: UnsafeMutablePointer<AVFilterContext>?
     private var filters: String?
+    private let options: KSOptions
     let timebase: Timebase
     private let isAudio: Bool
     private var params = AVBufferSrcParameters()
@@ -24,20 +25,43 @@ class MEFilter {
     }
 
     public init(timebase: Timebase, isAudio: Bool, nominalFrameRate: Float, options: KSOptions) {
-        graph = avfilter_graph_alloc()
-        graph?.pointee.opaque = Unmanaged.passUnretained(options).toOpaque()
+        self.options = options
         self.timebase = timebase
         self.isAudio = isAudio
         self.nominalFrameRate = nominalFrameRate
+        resetGraph()
     }
 
-    private func setup(filters: String) -> Bool {
+    @discardableResult
+    private func resetGraph() -> Bool {
+        graph?.pointee.opaque = nil
+        avfilter_graph_free(&graph)
+        bufferSrcContext = nil
+        bufferSinkContext = nil
+
+        graph = avfilter_graph_alloc()
+        graph?.pointee.opaque = Unmanaged.passUnretained(options).toOpaque()
+        return graph != nil
+    }
+
+    private func releaseStoredHardwareFramesContext() {
+        if params.hw_frames_ctx != nil {
+            av_buffer_unref(&params.hw_frames_ctx)
+        }
+    }
+
+    private func setup(filters: String, params: inout AVBufferSrcParameters) -> Bool {
+        guard resetGraph() else {
+            return false
+        }
         var inputs = avfilter_inout_alloc()
         var outputs = avfilter_inout_alloc()
-        var ret = avfilter_graph_parse2(graph, filters, &inputs, &outputs)
-        guard ret >= 0, let graph, let inputs, let outputs else {
+        defer {
             avfilter_inout_free(&inputs)
             avfilter_inout_free(&outputs)
+        }
+        var ret = avfilter_graph_parse2(graph, filters, &inputs, &outputs)
+        guard ret >= 0, let graph, let inputs, let outputs else {
             return false
         }
         let bufferSink = avfilter_get_by_name(isAudio ? "abuffersink" : "buffersink")
@@ -129,15 +153,25 @@ class MEFilter {
         params.sample_rate = inputFrame.pointee.sample_rate
         params.ch_layout = inputFrame.pointee.ch_layout
         if self.params != params || self.filters != filters {
-            self.params = params
-            self.filters = filters
-            if !setup(filters: filters) {
+            if !setup(filters: filters, params: &params) {
+                av_buffer_unref(&params.hw_frames_ctx)
                 completionHandler(inputFrame)
                 return
             }
+            releaseStoredHardwareFramesContext()
+            self.params = params
+            self.filters = filters
+        } else {
+            av_buffer_unref(&params.hw_frames_ctx)
+        }
+        guard let bufferSrcContext, let bufferSinkContext else {
+            completionHandler(inputFrame)
+            return
         }
         let ret = av_buffersrc_add_frame_flags(bufferSrcContext, inputFrame, 0)
         if ret < 0 {
+            self.filters = nil
+            resetGraph()
             return
         }
         while av_buffersink_get_frame_flags(bufferSinkContext, inputFrame, 0) >= 0 {
