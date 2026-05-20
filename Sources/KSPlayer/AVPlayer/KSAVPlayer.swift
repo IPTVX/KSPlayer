@@ -93,7 +93,10 @@ public class KSAVPlayer {
     private var error: Error? {
         didSet {
             if let error {
-                delegate?.finish(player: self, error: error)
+                runOnMainThread { [weak self] in
+                    guard let self else { return }
+                    delegate?.finish(player: self, error: error)
+                }
             }
         }
     }
@@ -165,7 +168,10 @@ public class KSAVPlayer {
             if playbackState != oldValue {
                 playOrPause()
                 if playbackState == .finished {
-                    delegate?.finish(player: self, error: nil)
+                    runOnMainThread { [weak self] in
+                        guard let self else { return }
+                        delegate?.finish(player: self, error: nil)
+                    }
                 }
             }
         }
@@ -245,7 +251,10 @@ extension KSAVPlayer {
                 playError = NSError(domain: "AVMoviePlayer", code: errorCode, userInfo: nil)
             }
         }
-        delegate?.finish(player: self, error: playError)
+        runOnMainThread { [weak self] in
+            guard let self else { return }
+            delegate?.finish(player: self, error: playError)
+        }
     }
 
     private func updateStatus(item: AVPlayerItem) {
