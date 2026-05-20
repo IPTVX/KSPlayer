@@ -79,7 +79,7 @@ class MEFilter {
         guard ret >= 0 else { return false }
         if let ctx = params.hw_frames_ctx {
             let framesCtxData = UnsafeMutableRawPointer(ctx.pointee.data).bindMemory(to: AVHWFramesContext.self, capacity: 1)
-            inputs.pointee.filter_ctx.pointee.hw_device_ctx = framesCtxData.pointee.device_ref
+            inputs.pointee.filter_ctx.pointee.hw_device_ctx = av_buffer_ref(framesCtxData.pointee.device_ref)
 //                    outputs.pointee.filter_ctx.pointee.hw_device_ctx = framesCtxData.pointee.device_ref
 //                    bufferSrcContext?.pointee.hw_device_ctx = framesCtxData.pointee.device_ref
 //                    bufferSinkContext?.pointee.hw_device_ctx = framesCtxData.pointee.device_ref
