@@ -105,17 +105,8 @@ class FFmpegDecode: DecodeProtocol {
                                 let data = sideData.data.withMemoryRebound(to: AVDynamicHDRVivid.self, capacity: 1) { $0 }.pointee
                             } else if sideData.type == AV_FRAME_DATA_MASTERING_DISPLAY_METADATA {
                                 let data = sideData.data.withMemoryRebound(to: AVMasteringDisplayMetadata.self, capacity: 1) { $0 }.pointee
-                                displayData = MasteringDisplayMetadata(
-                                    display_primaries_r_x: UInt16(data.display_primaries.0.0.num).bigEndian,
-                                    display_primaries_r_y: UInt16(data.display_primaries.0.1.num).bigEndian,
-                                    display_primaries_g_x: UInt16(data.display_primaries.1.0.num).bigEndian,
-                                    display_primaries_g_y: UInt16(data.display_primaries.1.1.num).bigEndian,
-                                    display_primaries_b_x: UInt16(data.display_primaries.2.1.num).bigEndian,
-                                    display_primaries_b_y: UInt16(data.display_primaries.2.1.num).bigEndian,
-                                    white_point_x: UInt16(data.white_point.0.num).bigEndian,
-                                    white_point_y: UInt16(data.white_point.1.num).bigEndian,
-                                    minLuminance: UInt32(data.min_luminance.num).bigEndian,
-                                    maxLuminance: UInt32(data.max_luminance.num).bigEndian
+                                displayData = makeMasteringDisplayMetadata(
+                                    from: data
                                 )
                             } else if sideData.type == AV_FRAME_DATA_CONTENT_LIGHT_LEVEL {
                                 let data = sideData.data.withMemoryRebound(to: AVContentLightMetadata.self, capacity: 1) { $0 }.pointee
@@ -125,10 +116,8 @@ class FFmpegDecode: DecodeProtocol {
                                 )
                             } else if sideData.type == AV_FRAME_DATA_AMBIENT_VIEWING_ENVIRONMENT {
                                 let data = sideData.data.withMemoryRebound(to: AVAmbientViewingEnvironment.self, capacity: 1) { $0 }.pointee
-                                ambientViewingEnvironment = AmbientViewingEnvironment(
-                                    ambient_illuminance: UInt32(data.ambient_illuminance.num).bigEndian,
-                                    ambient_light_x: UInt16(data.ambient_light_x.num).bigEndian,
-                                    ambient_light_y: UInt16(data.ambient_light_y.num).bigEndian
+                                ambientViewingEnvironment = makeAmbientViewingEnvironment(
+                                    from: data
                                 )
                             }
                         }
@@ -202,5 +191,69 @@ class FFmpegDecode: DecodeProtocol {
         if codecContext != nil {
             avcodec_flush_buffers(codecContext)
         }
+    }
+
+    private func makeMasteringDisplayMetadata(
+        from data: AVMasteringDisplayMetadata
+    ) -> MasteringDisplayMetadata? {
+        guard
+            let displayPrimariesRX = bigEndianUInt16(data.display_primaries.0.0.num),
+            let displayPrimariesRY = bigEndianUInt16(data.display_primaries.0.1.num),
+            let displayPrimariesGX = bigEndianUInt16(data.display_primaries.1.0.num),
+            let displayPrimariesGY = bigEndianUInt16(data.display_primaries.1.1.num),
+            let displayPrimariesBX = bigEndianUInt16(data.display_primaries.2.0.num),
+            let displayPrimariesBY = bigEndianUInt16(data.display_primaries.2.1.num),
+            let whitePointX = bigEndianUInt16(data.white_point.0.num),
+            let whitePointY = bigEndianUInt16(data.white_point.1.num),
+            let minLuminance = bigEndianUInt32(data.min_luminance.num),
+            let maxLuminance = bigEndianUInt32(data.max_luminance.num)
+        else {
+            return nil
+        }
+
+        return MasteringDisplayMetadata(
+            display_primaries_r_x: displayPrimariesRX,
+            display_primaries_r_y: displayPrimariesRY,
+            display_primaries_g_x: displayPrimariesGX,
+            display_primaries_g_y: displayPrimariesGY,
+            display_primaries_b_x: displayPrimariesBX,
+            display_primaries_b_y: displayPrimariesBY,
+            white_point_x: whitePointX,
+            white_point_y: whitePointY,
+            minLuminance: minLuminance,
+            maxLuminance: maxLuminance
+        )
+    }
+
+    private func makeAmbientViewingEnvironment(
+        from data: AVAmbientViewingEnvironment
+    ) -> AmbientViewingEnvironment? {
+        guard
+            let ambientIlluminance = bigEndianUInt32(data.ambient_illuminance.num),
+            let ambientLightX = bigEndianUInt16(data.ambient_light_x.num),
+            let ambientLightY = bigEndianUInt16(data.ambient_light_y.num)
+        else {
+            return nil
+        }
+
+        return AmbientViewingEnvironment(
+            ambient_illuminance: ambientIlluminance,
+            ambient_light_x: ambientLightX,
+            ambient_light_y: ambientLightY
+        )
+    }
+
+    private func bigEndianUInt16(_ value: Int32) -> UInt16? {
+        if value < 0 || value > Int32(UInt16.max) {
+            return nil
+        }
+        return UInt16(value).bigEndian
+    }
+
+    private func bigEndianUInt32(_ value: Int32) -> UInt32? {
+        if value < 0 {
+            return nil
+        }
+        return UInt32(value).bigEndian
     }
 }
